@@ -10,6 +10,7 @@ jobs:
    - checkout
    - setup_remote_docker
 
+   - run: go get -u github.com/govend/govend
    - run: 
       name: Setup environment
       command: |
