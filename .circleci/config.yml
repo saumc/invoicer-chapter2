@@ -39,7 +39,7 @@ jobs:
    - run:
       name: Run application in background
       command: |
-         docker run ${DOCKER_REPO}/${CIRCLE_PROJECT_REPONAME}
+        docker run ${DOCKER_REPO}/${CIRCLE_PROJECT_REPONAME}
       background: true
 
 
