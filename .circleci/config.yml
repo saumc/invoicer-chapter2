@@ -38,6 +38,12 @@ jobs:
         [ ! -e bin ] && mkdir bin;
         cp "${GOPATH_HEAD}/bin/${CIRCLE_PROJECT_REPONAME}" bin/invoicer;
         docker build -t ${DOCKER_REPO}/${CIRCLE_PROJECT_REPONAME} .;
+   - run:
+      name: Test dependencies are up to date
+      command:  |
+        echo ${GOPATH_HEAD}
+        echo ${GOPATH_BASE}
+        'GOPATH="${GOPATH_HEAD}"; ( cd ${GOPATH_BASE}/${CIRCLE_PROJECT_REPONAME} && govend -u --prune && git diff --quiet )'
 
    - run:
       name: Run application in background
@@ -59,12 +65,6 @@ jobs:
         if [ $? -ne 1 ]; then exit 0; else exit 1; fi;
         )
 
-   - run:
-      name: Test dependencies are up to date
-      command:  |
-        echo ${GOPATH_HEAD}
-        echo ${GOPATH_BASE}
-        'GOPATH="${GOPATH_HEAD}"; ( cd ${GOPATH_BASE}/${CIRCLE_PROJECT_REPONAME} && govend -u --prune && git diff --quiet )'
 
    - deploy:
       # Push application container to dockerhub
