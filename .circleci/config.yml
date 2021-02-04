@@ -24,8 +24,6 @@ jobs:
        export GOPATH_HEAD="$(echo ${GOPATH}|cut -d ':' -f 1)"
        export GOPATH_BASE="$(echo ${GOPATH}|cut -d ':' -f 1)${gb}"
        export DOCKER_REPO="$dr"
-       echo ${GOPATH_HEAD}
-       echo ${GOPATH_BASE}
        EOF
    - run: mkdir -p "${GOPATH_BASE}"
    - run: mkdir -p "${GOPATH_HEAD}/bin"
@@ -46,7 +44,7 @@ jobs:
         echo ${GOPATH_BASE}
         echo ${CIRCLE_PROJECT_REPONAME}
         cd ${GOPATH_BASE}/${CIRCLE_PROJECT_REPONAME} 
-# && govend -u --prune && git diff --quiet )'
+        govend -u --prune && git diff --quiet
 # 'GOPATH="${GOPATH_HEAD}"; ( cd ${GOPATH_BASE}/${CIRCLE_PROJECT_REPONAME} && govend -u --prune && git diff --quiet )'
        
    - run:
