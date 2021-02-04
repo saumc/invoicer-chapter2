@@ -44,7 +44,7 @@ jobs:
         echo ${GOPATH_BASE}
         echo ${CIRCLE_PROJECT_REPONAME}
         cd ${GOPATH_BASE}/${CIRCLE_PROJECT_REPONAME} 
-        govend -u --prune && git diff --quiet
+        ${GOPATH_BASE}/bin/govend -u --prune && git diff --quiet
 # 'GOPATH="${GOPATH_HEAD}"; ( cd ${GOPATH_BASE}/${CIRCLE_PROJECT_REPONAME} && govend -u --prune && git diff --quiet )'
        
    - run:
