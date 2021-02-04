@@ -37,14 +37,14 @@ jobs:
         cp "${GOPATH_HEAD}/bin/${CIRCLE_PROJECT_REPONAME}" bin/invoicer;
         docker build -t ${DOCKER_REPO}/${CIRCLE_PROJECT_REPONAME} .;
    
-   - run:
-      name: Test dependencies are up to date
-      command:  |
-        echo ${GOPATH_HEAD}
-        echo ${GOPATH_BASE}
-        echo ${CIRCLE_PROJECT_REPONAME}
-        cd ${GOPATH_BASE}/${CIRCLE_PROJECT_REPONAME} 
-        ${GOPATH_HEAD}/bin/govend -u --prune && git diff --quiet
+#   - run:
+#      name: Test dependencies are up to date
+#      command:  |
+#        echo ${GOPATH_HEAD}
+#        echo ${GOPATH_BASE}
+#        echo ${CIRCLE_PROJECT_REPONAME}
+#        cd ${GOPATH_BASE}/${CIRCLE_PROJECT_REPONAME} 
+#        ${GOPATH_HEAD}/bin/govend -u --prune && git diff --quiet
 # 'GOPATH="${GOPATH_HEAD}"; ( cd ${GOPATH_BASE}/${CIRCLE_PROJECT_REPONAME} && govend -u --prune && git diff --quiet )'
        
    - run:
