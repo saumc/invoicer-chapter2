@@ -258,4 +258,5 @@ func makeCSRFToken() string {
 	mac := hmac.New(sha256.New, CSRFKey)
 	mac.Write(msg)
 	return base64.StdEncoding.EncodeToString(msg) + `$` + base64.StdEncoding.EncodeToString(mac.Sum(nil))
+}
 
