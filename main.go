@@ -8,6 +8,10 @@ package main
 //go:generate ./version.sh
 
 import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -20,7 +24,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
+//	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/wader/gormstore"
 	"go.mozilla.org/mozlog"
 )
@@ -56,7 +60,7 @@ func main() {
 		))*/
 	} else {
 		log.Println("Opening sqlite connection")
-		db, err = gorm.Open("sqlite3", "invoicer.db")
+//		db, err = gorm.Open("sqlite3", "invoicer.db")
 	}
 	if err != nil {
 		log.Println("DBG")
