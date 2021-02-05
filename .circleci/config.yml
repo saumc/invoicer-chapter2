@@ -27,7 +27,11 @@ jobs:
        EOF
    - run: mkdir -p "${GOPATH_BASE}"
    - run: mkdir -p "${GOPATH_HEAD}/bin"
-       
+      ##FIXME
+#   - run:
+#      name: Test dependencies are up to date
+#      command: 'GOPATH="${GOPATH_HEAD}"; ( cd ${GOPATH_BASE}/${CIRCLE_PROJECT_REPONAME} && govend -u --prune && git diff --quiet )'
+      ## 
         # Changing code to add ZAP baseline tests
    - run:
       name: Build application container 
@@ -57,9 +61,9 @@ jobs:
         if [ $? -ne 1 ]; then exit 0; else exit 1; fi;
         )
 
-   - run:
-      name: Test dependencies are up to date
-      command: 'GOPATH="${GOPATH_HEAD}"; ( cd ${GOPATH_BASE}/${CIRCLE_PROJECT_REPONAME} && govend -u --prune && git diff --quiet )'
+#   - run:
+#      name: Test dependencies are up to date
+#      command: 'GOPATH="${GOPATH_HEAD}"; ( cd ${GOPATH_BASE}/${CIRCLE_PROJECT_REPONAME} && govend -u --prune && git diff --quiet )'
 
    - deploy:
       # Push application container to dockerhub
@@ -68,7 +72,7 @@ jobs:
             docker login -u ${DOCKER_USER} -p ${DOCKER_PASS};
             echo ${DOCKER_USER}/${CIRCLE_PROJECT_REPONAME}:${CIRCLE_TAG};
             go install --ldflags '-extldflags "-static"' github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME};
-            mkdir bin;
+            mkdir -p bin;
             cp "$GOPATH_HEAD/bin/${CIRCLE_PROJECT_REPONAME}" bin/invoicer;
             docker build -t ${DOCKER_REPO}/${CIRCLE_PROJECT_REPONAME} .;
             docker images --no-trunc | awk '/^app/ {print $3}' | sudo tee $CIRCLE_ARTIFACTS/docker-image-shasum256.txt;
