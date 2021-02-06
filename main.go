@@ -69,8 +69,20 @@ func main() {
 		panic("failed to connect database")
 	}
 
+	// initialize the session store
+	iv.store = gormstore.New(db, CSRFKey)
+	quit := make(chan struct{})
+	go iv.store.PeriodicCleanup(1*time.Hour, quit)
+
 	iv.db = db
 	iv.db.AutoMigrate(&Invoice{}, &Charge{})
+
+	//initialize CSRF Token
+	CSRFKey = make([]byte, 128)
+	_, err = rand.Read(CSRFKey)
+	if err != nil {
+		log.Fatal("error initializing CSRF Key:", err)
+	}
 
 	// register routes
 	r := mux.NewRouter()
@@ -198,8 +210,7 @@ func (iv *invoicer) putInvoice(w http.ResponseWriter, r *http.Request) {
 func (iv *invoicer) deleteInvoice(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	log.Println("In delete invoice.") 
-	w.Write([]byte(r.Header.Get("X-CSRF-Token")))
-	log.Println("CSRF-Token ", r.Header.Get("X-CSRF-Token"))
+	log.Println("print CSRF-Token ", r.Header.Get("X-CSRF-Token"))
 	if !checkCSRFToken(r.Header.Get("X-CSRF-Token")) {
 		w.WriteHeader(http.StatusNotAcceptable)
 		w.Write([]byte("Invalid CSRF Token"))
