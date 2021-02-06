@@ -8,10 +8,6 @@ package main
 //go:generate ./version.sh
 
 import (
-	"crypto/hmac"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -19,13 +15,12 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
-//	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/wader/gormstore"
 	"go.mozilla.org/mozlog"
 )
@@ -61,7 +56,7 @@ func main() {
 		))*/
 	} else {
 		log.Println("Opening sqlite connection")
-//		db, err = gorm.Open("sqlite3", "invoicer.db")
+		db, err = gorm.Open("sqlite3", "invoicer.db")
 	}
 	if err != nil {
 		log.Println("DBG")
@@ -69,20 +64,8 @@ func main() {
 		panic("failed to connect database")
 	}
 
-	// initialize the session store
-	iv.store = gormstore.New(db, CSRFKey)
-	quit := make(chan struct{})
-	go iv.store.PeriodicCleanup(1*time.Hour, quit)
-
 	iv.db = db
 	iv.db.AutoMigrate(&Invoice{}, &Charge{})
-
-	//initialize CSRF Token
-	CSRFKey = make([]byte, 128)
-	_, err = rand.Read(CSRFKey)
-	if err != nil {
-		log.Fatal("error initializing CSRF Key:", err)
-	}
 
 	// register routes
 	r := mux.NewRouter()
@@ -209,13 +192,6 @@ func (iv *invoicer) putInvoice(w http.ResponseWriter, r *http.Request) {
 
 func (iv *invoicer) deleteInvoice(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	log.Println("In delete invoice.") 
-	log.Println("print CSRF-Token ", r.Header.Get("X-CSRF-Token"))
-	if !checkCSRFToken(r.Header.Get("X-CSRF-Token")) {
-		w.WriteHeader(http.StatusNotAcceptable)
-		w.Write([]byte("Invalid CSRF Token"))
-		return
-	}
 	log.Println("deleting invoice", vars["id"])
 	var i1 Invoice
 	id, _ := strconv.Atoi(vars["id"])
@@ -272,27 +248,4 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 "commit": "%s",
 "build": "https://circleci.com/gh/Securing-DevOps/invoicer/"
 }`, version, commit)))
-}
-
-var CSRFKey []byte
-
-func makeCSRFToken() string {
-	msg := make([]byte, 32)
-	rand.Read(msg)
-	mac := hmac.New(sha256.New, CSRFKey)
-	mac.Write(msg)
-	return base64.StdEncoding.EncodeToString(msg) + `$` + base64.StdEncoding.EncodeToString(mac.Sum(nil))
-}
-
-func checkCSRFToken(token string) bool {
-	mac := hmac.New(sha256.New, CSRFKey)
-	tokenParts := strings.Split(token, "$")
-	if len(tokenParts) != 2 {
-		return false
-	}
-	msg, _ := base64.StdEncoding.DecodeString(tokenParts[0])
-	messageMAC, _ := base64.StdEncoding.DecodeString(tokenParts[1])
-	mac.Write([]byte(msg))
-	expectedMAC := mac.Sum(nil)
-	return hmac.Equal(messageMAC, expectedMAC)
 }
