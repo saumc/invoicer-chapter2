@@ -26,10 +26,38 @@ $(document).ready(function() {
         event.preventDefault();
         getInvoice($("#invoiceid").val(), $("#CSRFToken").val());
 	});
+
+    $("form#invoiceDeleter").submit(function(event) {
+        event.preventDefault();
+	    //alert('invoke deleteInvoice '+$('#invoiceid').val())
+        deleteInvoice($("#invoiceid").val(), $("#CSRFToken").val());
+	});
 });
+
+function deleteInvoice(invoiceid, CSRFToken) {
+	alert("Sending delete invoice request from js ", invoiceid, CSRFToken);
+    $.ajax({
+	    url: "/invoice/" + invoiceid,
+	    type: 'DELETE',
+	    beforeSend: function (request)
+	    {
+            	request.setRequestHeader("X-CSRF-Token", CSRFToken);
+            }, 
+	    success: function(invoice){
+		    alert("invoice deleted - response received from the backend")
+	    },
+	    error: function (xhr, ajaxOptions, thrownError) {
+            	if(xhr.status==404) {
+                	$('.invoice-details').html("<p>invoice for deletion not found</p>");
+                	return;
+            	}
+	    }
+    })
+}
 
 function getInvoice(invoiceid, CSRFToken) {
     $('.desc-invoice').html("<p>Showing invoice ID " + invoiceid + "</p>");
+
     $.ajax({
         url: "/invoice/" + invoiceid,
         beforeSend: function (request)
