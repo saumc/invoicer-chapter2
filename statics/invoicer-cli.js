@@ -22,20 +22,23 @@ $(document).ready(function() {
 });
 
 $(document).ready(function() {
+	var token = $('input[name="CSRFToken"]').attr('value');
     $("form#invoiceGetter").submit(function(event) {
         event.preventDefault();
-        getInvoice($("#invoiceid").val(), $("#CSRFToken").val());
+        //getInvoice($("#invoiceid").val(), $("#CSRFToken").val());
+        getInvoice($("#invoiceid").val(), token);
 	});
 
     $("form#invoiceDeleter").submit(function(event) {
         event.preventDefault();
 	    //alert('invoke deleteInvoice '+$('#invoiceid').val())
-        deleteInvoice($("#invoiceid").val(), $("#CSRFToken").val());
+        //deleteInvoice($("#invoiceid").val(), $("#CSRFToken").val());
+        deleteInvoice($("#invoiceid").val(), token);
 	});
 });
 
 function deleteInvoice(invoiceid, CSRFToken) {
-	alert("Sending delete invoice request from js ", invoiceid, CSRFToken);
+//	alert("Sending delete invoice request from js ", invoiceid, CSRFToken);
     $.ajax({
 	    url: "/invoice/" + invoiceid,
 	    type: 'DELETE',
