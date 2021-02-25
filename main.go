@@ -144,7 +144,7 @@ func (iv *invoicer) getInvoice(w http.ResponseWriter, r *http.Request) {
 		httpError(w, r, http.StatusInternalServerError, "failed to retrieve invoice id %d: %s", vars["id"], err)
 		return
 	}
-	w.Header().Add("X-Content-Type-Options", "nosniff")
+//	w.Header().Add("X-Content-Type-Options", "nosniff")
 	w.Header().Add("Content-Type", "application/json")
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(http.StatusOK)
@@ -235,7 +235,7 @@ func (iv *invoicer) getIndex(w http.ResponseWriter, r *http.Request) {
 	log.Println("serving index page")
 	w.Header().Add("Content-Security-Policy", "default-src 'self'; child-src 'self';")
 	w.Header().Add("X-Frame-Options", "SAMEORIGIN")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
+//	w.Header().Add("X-Content-Type-Options", "nosniff")
 	w.Write([]byte(`
 <!DOCTYPE html>
 <html>
