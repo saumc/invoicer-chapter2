@@ -144,6 +144,7 @@ func (iv *invoicer) getInvoice(w http.ResponseWriter, r *http.Request) {
 		httpError(w, r, http.StatusInternalServerError, "failed to retrieve invoice id %d: %s", vars["id"], err)
 		return
 	}
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Add("Content-Type", "application/json")
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(http.StatusOK)
