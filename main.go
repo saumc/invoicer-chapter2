@@ -6,6 +6,7 @@
 package main
 
 //go:generate ./version.sh
+//Adding basic HTML authentication
 
 import (
 	"crypto/hmac"
@@ -25,9 +26,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
+//	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/wader/gormstore"
 	"go.mozilla.org/mozlog"
+	"golang.org/x/oauth2"
 )
 
 func init() {
@@ -59,10 +61,11 @@ func main() {
 			os.Getenv("INVOICER_POSTGRES_DB"),
 			os.Getenv("INVOICER_POSTGRES_SSLMODE"),
 		))*/
-	} else {
+	} 
+	/*else {
 		log.Println("Opening sqlite connection")
 		db, err = gorm.Open("sqlite3", "invoicer.db")
-	}
+	}*/
 	if err != nil {
 		log.Println("DBG")
 		log.Println(err)
@@ -76,6 +79,7 @@ func main() {
 
 	iv.db = db
 	iv.db.AutoMigrate(&Invoice{}, &Charge{})
+	iv.db.LogMode(true)
 
 	//initialize CSRF Token
 	CSRFKey = make([]byte, 128)
@@ -95,6 +99,8 @@ func main() {
 	r.HandleFunc("/invoice/delete/{id:[0-9]+}", iv.deleteInvoice).Methods("GET")
 	r.HandleFunc("/__version__", getVersion).Methods("GET")
 
+	r.HandleFunc("/authenticate", iv.getAuthenticate).Methods("GET")
+	r.HandleFunc("/oauth2callback", iv.getOAuth2Callback).Methods("GET")
 	// handle static files
 	r.Handle("/statics/{staticfile}",
 		http.StripPrefix("/statics/", http.FileServer(http.Dir("./statics"))),
@@ -246,21 +252,8 @@ func (iv *invoicer) getIndex(w http.ResponseWriter, r *http.Request) {
         <link href="statics/style.css" rel="stylesheet">
     </head>
     <body>
-	<h1>Invoicer Web</h1>
-        <p class="desc-invoice"></p>
-        <div class="invoice-details">
-        </div>
-        <h3>Request an invoice by ID</h3>
-        <form id="invoiceGetter" method="GET">
-            <label>ID :</label>
-            <input id="invoiceid" type="text" />
-            <input type="hidden" name="CSRFToken" value="` + makeCSRFToken() + `">
-            <input type="submit" />
-        </form>
-        <form id="invoiceDeleter" method="DELETE">
-            <label>Delete this invoice</label>
-            <input type="submit" />
-        </form>
+	<h1>Welcome to Invoicer Web</h1>
+	<p><a href="/authenticate">Authenticate with Google</a></p>
     </body>
 </html>`))
 }
@@ -300,4 +293,119 @@ func checkCSRFToken(token string) bool {
 	mac.Write([]byte(msg))
 	expectedMAC := mac.Sum(nil)
 	return hmac.Equal(messageMAC, expectedMAC)
+}
+
+//Outh with google - support
+
+var oauthCfg = &oauth2.Config{
+	//ClientID:     "606479880714-v36tg6qtn9alsinbvfb0qtmvjdkunq4c.apps.googleusercontent.com",
+	ClientID:     "153290704020-him6fhbh8fbndgf0svgr9ca0rkjhre6k.apps.googleusercontent.com",
+	//ClientSecret: "ySBC6T-F31ez3qsA3lnNRvtr",
+	ClientSecret: "MITBsEvph6IFxHN_kykMyIgb",
+//	RedirectURL:  "http://localhost:8080/oauth2callback",
+	RedirectURL:  "http://invoicer-db-invoicer-api.eba-yjprmz4n.ap-south-1.elasticbeanstalk.com/oauth2callback",
+	Scopes:       []string{"https://www.googleapis.com/auth/userinfo.profile"},
+	Endpoint: oauth2.Endpoint{
+		AuthURL:  "https://accounts.google.com/o/oauth2/auth",
+		TokenURL: "https://accounts.google.com/o/oauth2/token",
+	},
+}
+//Builds an redirection URL with right parameters and redirects the user to google.
+func (iv *invoicer) getAuthenticate(w http.ResponseWriter, r *http.Request) {
+	//Get the Google URL which shows the Authentication page to the user
+	csrftoken2 := makeCSRFToken()
+	url := oauthCfg.AuthCodeURL(csrftoken2)
+	fmt.Println("DBG: CSRF-Token getAuthenticate", csrftoken2)
+	//redirect user to that page
+	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+}
+
+// Function that handles the callback from the IDP (after authenticating the user (login or reusing the existing session. r contains details of the state and the code.
+func (iv *invoicer) getOAuth2Callback(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("DBG: CSRF-Token getAuth2Callback", r.FormValue("state"))
+	if !checkCSRFToken(r.FormValue("state")) {
+		w.WriteHeader(http.StatusNotAcceptable)
+		w.Write([]byte("Failed to verify oauth state via CSRF token '" + r.FormValue("state") + "'"))
+		return
+	}
+	token, err := oauthCfg.Exchange(oauth2.NoContext, r.FormValue("code"))
+	if err != nil {
+		w.WriteHeader(http.StatusNotAcceptable)
+		w.Write([]byte("Failed to obtain token from oauth code " + r.FormValue("code")))
+		return
+	}
+
+	client := oauthCfg.Client(oauth2.NoContext, token)
+	resp, err := client.Get(`https://www.googleapis.com/oauth2/v1/userinfo?alt=json`)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Failed to retrieve user information from IDP"))
+		return
+	}
+	buf := make([]byte, 10240)
+	buf, err = ioutil.ReadAll(resp.Body) // this works
+	size := len(buf)
+	fmt.Printf("DBG: Response from google : %s DONE! size %d\n", buf, size)
+	var up UserProfile
+	err = json.Unmarshal(buf[:size], &up)
+
+	if err != nil {
+		w.WriteHeader(http.StatusExpectationFailed)
+		w.Write([]byte("Failed to parse user information from " + string(buf)))
+		return
+	}
+
+	// Create a session, save it and return a cookie
+	session, err := iv.store.Get(r, "session")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Failed to create session for user"))
+		return
+	}
+	sid := makeCSRFToken()
+	session.Values[up.Name] = sid
+	iv.store.Save(r, w, session)
+
+/*	w.Write([]byte(fmt.Sprintf(`<html><body>
+This app is now authenticated to access your Google user info.  Your details are:<br />
+%s
+<img src="%s" />
+</body></html>`, up.Name, up.Picture)))
+*/
+	csrftoken :=makeCSRFToken()
+	fmt.Println("DBG: index.html csrf toke ", csrftoken)
+	w.Write([]byte(`
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Invoicer Web</title>
+        <script src="statics/jquery-1.12.4.min.js"></script>
+        <script src="statics/invoicer-cli.js"></script>
+        <link href="statics/style.css" rel="stylesheet">
+    </head>
+    <body>
+	<h1>Invoicer Web</h1>
+<!--	<p><a href="/authenticate">Authenticate with Google</a></p> -->
+        <p class="desc-invoice"></p>
+        <div class="invoice-details">
+        </div>
+        <h3>Request an invoice by ID</h3>
+        <form id="invoiceGetter" method="GET">
+            <label>ID :</label>
+            <input id="invoiceid" type="text" />
+        <input type="hidden" name="CSRFToken" value="` + csrftoken + `">
+            <input type="submit" />
+        </form>
+        <form id="invoiceDeleter" method="DELETE">
+            <label>Delete this invoice</label>
+            <input type="submit" />
+        </form>
+        <p> End of the page </p>
+    </body>
+</html>`))
+}
+
+type UserProfile struct {
+	Name    string `json:"name"`
+	Picture string `json:"picture"`
 }
